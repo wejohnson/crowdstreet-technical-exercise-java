@@ -1,160 +1,154 @@
+
 /******************************************************************************************************************/
-/* This isn't a great solution and I would love to take more time developing a better one. It randomly selects    */
-/* numbers until you get down to your last two. Those should have an equal amount left in the distribution.       */
-/* It then takes alternates between those 2 so you don't have repeats.  There were times during testing where it  */
-/* hang and not complete because the distribution count wasn't changing.                                          */
-/* There are some efficiencies to be made and duplicate code to clean up.                                         */
-/* Also, the count variable is acurate but is usually 1 less than the # of lines in the output file.              */
+/* This is a 2nd approach to the problem.  It's still not great, but it completes and returns the correct         */
+/* number of rows.  It is a bit slower, approximately 30s on my machine.                                          */
+/* The algorithm goes through each numbe 1-20 and places the number in a random location in the result array.     */
+/* It then goes through and makes sure no number is listed consecutively and then finds the 20s.                  */
+/* I wish it didn't traverse the array as many times as it does.                                                  */
 /******************************************************************************************************************/
-import java.util.Map;
-import java.util.HashMap;
 import java.util.Random;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
 public class TechnicalExercise {
+    public static void main(String args[]) {
+        int[] distribution = new int[] { 83000, /* 1 */
+                83000, /* 2 */
+                83000, /* 3 */
+                83000, /* 4 */
+                83000, /* 5 */
+                83000, /* 6 */
+                83000, /* 7 */
+                83000, /* 8 */
+                83000, /* 9 */
+                83000, /* 10 */
+                83000, /* 11 */
+                83000, /* 12 */
+                1000, /* 13 */
+                500, /* 14 */
+                250, /* 15 */
+                100, /* 16 */
+                50, /* 17 */
+                25, /* 18 */
+                10, /* 19 */
+                5 /* 20 */
+        };
 
-    // Distribution count 
-    static final Map<Integer, Integer> distribution;
+        ArrayList<Integer> excludes = new ArrayList<Integer>();
+        Random random = new Random();
+        int[] result = new int[997940];
+        int[] cleanedResult = new int[997940];
+        ArrayList<Integer> remainingLocations = initializeRemainingLocationsArray(result);
+        int nextIndex;
+        int nextLocation;
 
-    static {
-        distribution = new HashMap<>();
-        distribution.put(1, 83000);
-        distribution.put(2, 83000);
-        distribution.put(3, 83000);
-        distribution.put(4, 83000);
-        distribution.put(5, 83000);
-        distribution.put(6, 83000);
-        distribution.put(7, 83000);
-        distribution.put(8, 83000);
-        distribution.put(9, 83000);
-        distribution.put(10, 83000);
-        distribution.put(11, 83000);
-        distribution.put(12, 83000);
-        distribution.put(13, 1000);
-        distribution.put(14, 500);
-        distribution.put(15, 250);
-        distribution.put(16, 100);
-        distribution.put(17, 50);
-        distribution.put(18, 25);
-        distribution.put(19, 10);
-        distribution.put(20, 5);
+        Arrays.fill(result, 0); // Initialize the array to 0
+
+        // Go through the distribution rules and place the numbers somewhere randomly
+        for (int i = 0; i < distribution.length; i++) {
+            // Continue placing each number until the allotment of that number is depleted
+            while (distribution[i] > 0) {
+                /*
+                 * remainingLocations hold the indices are still available in the result array.
+                 * Each random spot is chosen from the remaining locations
+                 */
+                nextIndex = getRandomNumber(0, remainingLocations.size() - 1, random, remainingLocations);
+                nextLocation = remainingLocations.get(nextIndex);
+
+                // Place the number in the randomly chosen location, update dist info, and
+                // remove that location from remaining list
+                if (result[nextLocation] == 0) {
+                    result[nextLocation] = (i + 1);
+                    remainingLocations.remove(nextIndex);
+                    distribution[i]--;
+                }
+            }
+        }
+
+        cleanedResult = cleanUpOutput(result);
+        writeOutputToFile(cleanedResult);
+        System.out.println("Rows with 20 " + findTwenties(result));
     }
 
-    public static void main(String args[]){
-        ArrayList<Long> twenties = new ArrayList<Long>();
-        ArrayList<Integer> excludes = new ArrayList<Integer>();
-        int nextNumber = -1;
-        int lastNumber = 0;
-        int firstHighest = 83000;
-        int secondHighest = 83000;
-        long count = 1;
+    // Return a random number, excluding the ones that have already used up their
+    // number of instances
+    private static int getRandomNumber(int start, int end, Random random, ArrayList<Integer> remainingLocations) {
+        int rnd;
+        rnd = start + random.nextInt((end - start) + 1);
+
+        return rnd;
+    }
+
+    // Initialized the remaining list array so that the value is equal to the index
+    private static ArrayList<Integer> initializeRemainingLocationsArray(int[] result) {
+        ArrayList<Integer> remaining = new ArrayList<Integer>();
+
+        for (int i = 0; i < result.length; i++) {
+            remaining.add(i);
+        }
+
+        return remaining;
+    }
+
+    // Goes through the result array and makes sure no values are listed
+    // consecutively
+    private static int[] cleanUpOutput(int[] result) {
+        boolean again = true;
+
+        while (again) {
+            again = false;
+            for (int i = 0; i < (result.length - 1); i++) {
+
+                if (result[i] == result[i + 1]) {
+                    int pos1 = i + 1;
+                    int pos2 = ((i + 2) >= result.length) ? 0 : i + 2;
+                    again = true;
+
+                    // Swap numbers. Separate this part
+                    int temp = result[pos1];
+                    result[pos1] = result[pos2];
+                    result[pos2] = temp;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // Returns the rows that 20s are on
+    private static ArrayList<Integer> findTwenties(int[] result) {
+        ArrayList<Integer> twenties = new ArrayList<Integer>();
+
+        for (int i = 0; i < result.length; i++) {
+            if (result[i] == 20) {
+                twenties.add(i + 1);
+            }
+        }
+        return twenties;
+    }
+
+    // Writes the output to a file
+    private static void writeOutputToFile(int[] result) {
         FileWriter fileWriter;
 
         try {
             fileWriter = new FileWriter("test.output");
 
             try {
-                while (excludes.size() < 20) { // end when all the numbers have used up their allocation
-                    nextNumber = getRandomNumber(1, 20, excludes);
 
-                    // The first part of algorithm completes until the only two numbers have instances left
-                    if (excludes.size() <= 17 && Math.abs((firstHighest - secondHighest)) <= 1) {
-                        if (secondHighest != distribution.get(nextNumber) || firstHighest == secondHighest) {
-                            if (distribution.get(nextNumber) == 0 && !excludes.contains(nextNumber)) {
-                                excludes.add(nextNumber);
-                            }
-
-                            if ((nextNumber != lastNumber) && !excludes.contains(nextNumber)  ) {
-                                distribution.put(nextNumber, distribution.get(nextNumber) - 1);
-
-                                fileWriter.write(Integer.toString(nextNumber) + "\n");
-                                
-                                if (nextNumber == 20) {
-                                    twenties.add(count);
-                                }
-                
-                                count++;
-                                lastNumber = nextNumber;
-                            }
-                        }
-                    }
-                    // the 2nd part takes turns picking from the 2 that are left.
-                    else if (excludes.size() >= 18 && (lastNumber != nextNumber)) {
-
-                        int numToUse;
-
-                        while (distribution.get(lastNumber) > 0 && distribution.get(nextNumber) > 0) {
-                            if (distribution.get(lastNumber) > distribution.get(nextNumber)) {
-                                numToUse = lastNumber;
-                            }
-                            else {
-                                numToUse = nextNumber;
-                            }
-    
-                            if ((nextNumber != lastNumber) && !excludes.contains(numToUse)) {
-                                distribution.put(numToUse, distribution.get(numToUse) - 1);
-                                fileWriter.write(Integer.toString(numToUse) + "\n");
-
-                                // This probably isn't necessary at this point
-                                if (numToUse == 20) {
-                                    twenties.add(count);
-                                }
-
-                                count++;
-                            }
-                        }
-
-                        excludes.add(lastNumber);
-                        excludes.add(nextNumber);
-                    }
-
-                    firstHighest = findFirstHighest();
-                    secondHighest = findSecondHighest();
-            
+                for (int i = 0; i < result.length; i++) {
+                    fileWriter.write(Integer.toString(result[i]) + "\n");
                 }
-             } finally {
+
+            } finally {
                 fileWriter.close();
-             }            
+            }
         } catch (IOException e) {
             System.out.println("en error has occurred creating the file");
             e.printStackTrace();
-        } finally {
-            System.out.println("Rows with 20 " + twenties);
         }
-    }
-
-    // Return a random number, excluding the ones that have already used up their number of instances
-    private static int getRandomNumber(int start, int end, ArrayList<Integer> excludes) {
-        int rnd;
-
-        do {
-            Random random = new Random();
-            rnd = start + random.nextInt((end - start) + 1);
-        } while (excludes.contains(rnd));
-
-        return rnd;
-    }
-
-    // Find the number with the highest number of instances remaining
-    private static int findFirstHighest() {
-        ArrayList<Integer> sortedDistValues = getSortedDistributionValues();
-        return sortedDistValues.get(0);
-    }
-
-    // Find the humber with the highest number of instances remaining
-    private static int findSecondHighest() {
-        ArrayList<Integer> sortedDistValues = getSortedDistributionValues();
-        return sortedDistValues.get(1);
-    }
-
-    // Sort the distribution
-    private static ArrayList<Integer> getSortedDistributionValues() {
-        ArrayList<Integer> distValues = new ArrayList<Integer>(distribution.values());
-        Collections.sort(distValues, Collections.reverseOrder());
-        return distValues;
     }
 }
